@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hivemq
+  namespace: hivemq
+  labels:
+    app: hivemq
+spec:
+  serviceName: hivemq-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: hivemq
+  template:
+    metadata:
+      labels:
+        app: hivemq
+      annotations:
+        replica-count: "{{ .Values.replicaCount }}"
+        extension-state: "enabled"
+        config-state: "disabled"
+        log-level: "INFO"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10000
+        fsGroup: 10000
+
+      containers:
+        - name: hivemq
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: mqtt
+              containerPort: 1883
+            - name: mqtts
+              containerPort: 8883
+            - name: admin
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9399
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          volumeMounts:
+            - name: config
+              mountPath: /conf-override/conf
+            - name: data
+              mountPath: /hivemq-data
+            - name: podinfo
+              mountPath: /etc/podinfo
+
+      volumes:
+        - name: config
+          configMap:
+            name: hivemq-config
+
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: "replica-count"
+                fieldRef:
+                  fieldPath: metadata.annotations['replica-count']
+              - path: "extension-state"
+                fieldRef:
+                  fieldPath: metadata.annotations['extension-state']
+              - path: "config-state"
+                fieldRef:
+                  fieldPath: metadata.annotations['config-state']
+              - path: "log-level"
+                fieldRef:
+                  fieldPath: metadata.annotations['log-level']
+
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.persistence.storageClassName | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}

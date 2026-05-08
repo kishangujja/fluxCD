@@ -1,0 +1,62 @@
+replicaCount: 1
+
+image:
+  repository: hivemq/hivemq4
+  tag: k8s-4.42.0
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  ports:
+    mqtt: 1883
+    mqtts: 8883
+    admin: 8080
+    metrics: 9399
+
+persistence:
+  enabled: true
+  storageClassName: "standard"
+  size: 10Gi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10000
+  fsGroup: 10000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+configXml: |
+  <hivemq>
+    <listeners>
+      <tcp-listener>
+        <port>1883</port>
+        <bind-address>0.0.0.0</bind-address>
+      </tcp-listener>
+    </listeners>
+
+    <security>
+      <allow-empty-client-id>
+        <enabled>true</enabled>
+      </allow-empty-client-id>
+
+      <payload-format-validation>
+        <enabled>false</enabled>
+      </payload-format-validation>
+
+      <allow-request-problem-information>
+        <enabled>true</enabled>
+      </allow-request-problem-information>
+
+      <control-center-audit-log>
+        <enabled>false</enabled>
+      </control-center-audit-log>
+    </security>
+
+    <control-center>
+      <enabled>false</enabled>
+    </control-center>
+  </hivemq>
